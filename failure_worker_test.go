@@ -71,7 +71,7 @@ func getFailureRedisConnMock(t *testing.T) *redigomock.Conn {
 	return conn
 }
 
-func TestFailureWorker_ProcessTask(t *testing.T) {
+func TestFailureWorker_processTask(t *testing.T) {
 	failure := make(chan error, 0)
 	conn := getFailureRedisConnMock(t)
 
@@ -90,5 +90,19 @@ func TestFailureWorker_ProcessTask(t *testing.T) {
 
 	if len(conn.Errors) > 0 {
 		t.Fatal(conn.Errors)
+	}
+}
+
+func TestFailureWorker_GetInstanceId(t *testing.T) {
+	failure := make(chan error, 0)
+	conn := getFailureRedisConnMock(t)
+
+	expected := "failure_worker_1"
+	w := NewFailureWorker(expected, conn, FAILURE_WORKER_REDIS_PREFIX, FAILURE_WORKER_TASK_TYPE, nil, failure)
+	got := w.GetInstanceId()
+
+	if got != expected {
+		t.Errorf("Unexpected instance id value, expected %+v, got %+v", expected, got)
+		t.FailNow()
 	}
 }

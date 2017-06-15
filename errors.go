@@ -3,12 +3,12 @@ package redisq
 import "fmt"
 
 type WorkerError struct {
-	Id  string
-	Err error
+	Worker WorkerInterface
+	Err    error
 }
 
 func (w WorkerError) Error() string {
-	return fmt.Sprintf("Worker Id \"%s\" failed with error \"%+v\"", w.Id, w.Err)
+	return fmt.Sprintf("Worker Id \"%s\" failed with error \"%+v\"", w.Worker.GetInstanceId(), w.Err)
 }
 
 type WorkerFatalError struct {
@@ -16,5 +16,5 @@ type WorkerFatalError struct {
 }
 
 func (w WorkerFatalError) Error() string {
-	return fmt.Sprintf("Worker Id \"%s\" failed with error \"%+v\"", w.Id, w.Err)
+	return fmt.Sprintf("Worker Id \"%s\" failed with error \"%+v\"", w.Worker.GetInstanceId(), w.Err)
 }

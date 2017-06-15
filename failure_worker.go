@@ -83,6 +83,11 @@ func (w *FailureWorker) processTask(uuid string) {
 	}
 }
 
+// Get worker instance id
+func (w *FailureWorker) GetInstanceId() string {
+	return w.id
+}
+
 // Run a worker (normally use a goroutine to allow concurent workers)
 func (w *FailureWorker) Run() {
 	for {
@@ -92,8 +97,8 @@ func (w *FailureWorker) Run() {
 		if err != nil {
 			w.failure <- WorkerFatalError{
 				WorkerError: WorkerError{
-					Id:  w.id,
-					Err: err,
+					Worker: w,
+					Err:    err,
 				},
 			}
 			return

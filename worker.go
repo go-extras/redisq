@@ -5,6 +5,7 @@ import (
 )
 
 type WorkerInterface interface {
+	GetInstanceId() string
 	Run()
 }
 
@@ -90,6 +91,11 @@ func (w *Worker) processTask(uuid string) {
 	}
 }
 
+// Get worker instance id
+func (w *Worker) GetInstanceId() string {
+	return w.id
+}
+
 // Run a worker (normally use a goroutine to allow concurent workers)
 func (w *Worker) Run() {
 	for {
@@ -99,7 +105,7 @@ func (w *Worker) Run() {
 		if err != nil {
 			w.failure <- WorkerFatalError{
 				WorkerError: WorkerError{
-					Id:  w.id,
+					Worker:  w,
 					Err: err,
 				},
 			}
