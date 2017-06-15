@@ -6,6 +6,7 @@ import (
 
 type WorkerInterface interface {
 	GetInstanceId() string
+	GetTaskType() string
 	Run()
 }
 
