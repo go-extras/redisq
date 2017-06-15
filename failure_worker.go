@@ -88,6 +88,11 @@ func (w *FailureWorker) GetInstanceId() string {
 	return w.id
 }
 
+// Get worker instance id
+func (w *FailureWorker) GetTaskType() string {
+	return w.rc.taskType
+}
+
 // Run a worker (normally use a goroutine to allow concurent workers)
 func (w *FailureWorker) Run() {
 	for {

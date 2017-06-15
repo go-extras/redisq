@@ -108,12 +108,25 @@ func TestWorker_GetInstanceId(t *testing.T) {
 	failure := make(chan error, 0)
 	conn := getFailureRedisConnMock(t)
 
-	expected := "failure_worker_1"
+	expected := "worker_1"
 	w := NewWorker(expected, conn, WORKER_REDIS_PREFIX, WORKER_TASK_TYPE, nil, failure)
 	got := w.GetInstanceId()
 
 	if got != expected {
 		t.Errorf("Unexpected instance id value, expected %+v, got %+v", expected, got)
+		t.FailNow()
+	}
+}
+
+func TestWorker_GetTaskType(t *testing.T) {
+	failure := make(chan error, 0)
+	conn := getFailureRedisConnMock(t)
+
+	w := NewWorker("worker_1", conn, WORKER_REDIS_PREFIX, WORKER_TASK_TYPE, nil, failure)
+	got := w.GetTaskType()
+
+	if got != WORKER_TASK_TYPE {
+		t.Errorf("Unexpected instance id value, expected %+v, got %+v", WORKER_TASK_TYPE, got)
 		t.FailNow()
 	}
 }
