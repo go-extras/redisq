@@ -23,6 +23,7 @@ type TaskDetails struct {
 	Attempts    int      `json:"attempts"`
 	Type        string   `json:"type"`
 	LastAttempt string   `json:"lastAttempt"`
+	LastError   string   `json:"lastError"`
 }
 
 // increments attempts and updates `LastAttempt` property to the current date

@@ -81,8 +81,8 @@ func getRedisConnMock(t *testing.T) *redigomock.Conn {
 	return conn
 }
 
-func TestWorker_ProcessTask(t *testing.T) {
-	quit := make(chan bool, 0)
+func TestWorker_processTask(t *testing.T) {
+	failure := make(chan error, 0)
 	conn := getRedisConnMock(t)
 
 	handler := WorkerHandler(func(args []string) error {
@@ -95,9 +95,9 @@ func TestWorker_ProcessTask(t *testing.T) {
 		return nil
 	})
 
-	w := NewWorker(conn, WORKER_REDIS_PREFIX, WORKER_TASK_TYPE, handler, quit)
+	w := NewWorker("worker 1", conn, WORKER_REDIS_PREFIX, WORKER_TASK_TYPE, handler, failure)
 
-	w.ProcessTask(WORKER_TASK_UUID)
+	w.processTask(WORKER_TASK_UUID)
 
 	if len(conn.Errors) > 0 {
 		t.Fatal(conn.Errors)

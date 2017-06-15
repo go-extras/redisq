@@ -72,7 +72,7 @@ func getFailureRedisConnMock(t *testing.T) *redigomock.Conn {
 }
 
 func TestFailureWorker_ProcessTask(t *testing.T) {
-	quit := make(chan bool, 0)
+	failure := make(chan error, 0)
 	conn := getFailureRedisConnMock(t)
 
 	handler := WorkerHandler(func(args []string) error {
@@ -85,8 +85,8 @@ func TestFailureWorker_ProcessTask(t *testing.T) {
 		return nil
 	})
 
-	w := NewFailureWorker(conn, FAILURE_WORKER_REDIS_PREFIX, FAILURE_WORKER_TASK_TYPE, handler, quit)
-	w.ProcessTask(FAILURE_WORKER_TASK_UUID)
+	w := NewFailureWorker("failure_worker_1", conn, FAILURE_WORKER_REDIS_PREFIX, FAILURE_WORKER_TASK_TYPE, handler, failure)
+	w.processTask(FAILURE_WORKER_TASK_UUID)
 
 	if len(conn.Errors) > 0 {
 		t.Fatal(conn.Errors)
