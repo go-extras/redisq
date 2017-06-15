@@ -44,6 +44,7 @@ func (w *FailureWorker) processTask(uuid string) {
 	}()
 
 	// sleep so that we don't process this task immediately
+	w.Logger.Debugf("Sleeping %dms", w.SleepTime)
 	time.Sleep(time.Duration(w.SleepTime) * time.Millisecond)
 
 	// obtain task details
@@ -76,7 +77,7 @@ func (w *FailureWorker) processTask(uuid string) {
 	}
 
 	// otherwise put the task to the failure queue
-	w.Logger.Errorf("Handler call for task \"%s\" failed: %+v", uuid, err)
+	w.Logger.Errorf("Handler call for task \"%s\" failed: %+v. ", uuid, err)
 	if err := w.rc.PushTaskToList(uuid, LIST_FAILURE_FINAL); err != nil {
 		w.Logger.Errorf("PushTaskToList(\"%s\", \"%s\") call failed: %+v", uuid, LIST_FAILURE_FINAL, err)
 	}
