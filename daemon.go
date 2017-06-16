@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/garyburd/redigo/redis"
-	"gopkg.in/go-extras/redisq.v1"
 	"math/rand"
 	"runtime"
 	"strings"
@@ -20,8 +19,8 @@ type Daemon struct {
 	workerCount          int
 	FailureMaxAttempts   int
 	FailureSleepTime     int
-	WorkerHandler        redisq.WorkerHandler
-	FailureWorkerHandler redisq.WorkerHandler
+	WorkerHandler        WorkerHandler
+	FailureWorkerHandler WorkerHandler
 	Logger               Logger
 }
 
@@ -48,7 +47,7 @@ func (d *Daemon) getRedisConn(id, taskType, addr string) redis.Conn {
 
 func (d *Daemon) runWorker(id string) {
 	conn := d.getRedisConn(id, d.taskType, d.redisAddr)
-	worker := redisq.NewWorker(
+	worker := NewWorker(
 		id,
 		conn,
 		d.redisPrefix,
@@ -63,9 +62,9 @@ func (d *Daemon) runWorker(id string) {
 	}(conn)
 }
 
-func (d *Daemon) runFailureWorker(id string) redisq.WorkerInterface {
+func (d *Daemon) runFailureWorker(id string) WorkerInterface {
 	conn := d.getRedisConn(id, d.taskType, d.redisAddr)
-	failureWorker := redisq.NewFailureWorker(
+	failureWorker := NewFailureWorker(
 		id,
 		conn,
 		d.redisPrefix,
@@ -88,7 +87,7 @@ func (d *Daemon) workerErrorHandler() {
 	for {
 		select {
 		case err := <-d.failureW:
-			if val, ok := err.(redisq.WorkerFatalError); ok {
+			if val, ok := err.(WorkerFatalError); ok {
 				d.Logger.Errorf("[%s][%s] failed with error: %+v", val.Worker.GetInstanceId(), val.Worker.GetTaskType(), val.Err)
 				go func() {
 					d.sleep(val.Worker.GetInstanceId(), 5, 15)
@@ -98,7 +97,7 @@ func (d *Daemon) workerErrorHandler() {
 				d.Logger.Error(err)
 			}
 		case err := <-d.failureFW:
-			if val, ok := err.(redisq.WorkerFatalError); ok {
+			if val, ok := err.(WorkerFatalError); ok {
 				d.Logger.Errorf("[%s][%s] failed with error: %+v", val.Worker.GetInstanceId(), val.Worker.GetTaskType(), val.Err)
 				go func() {
 					d.sleep(val.Worker.GetInstanceId(), 5, 15)
@@ -128,13 +127,13 @@ func (d *Daemon) Run() {
 func NewDaemon(taskType string, workerCount int, redisPrefix, redisAddr string) *Daemon {
 	logger := &NullLogger{}
 
-	workerHandler := redisq.WorkerHandler(func(args []string) error {
+	workerHandler := WorkerHandler(func(args []string) error {
 		logger.Printf("Task args: %s", strings.Join(args, " "))
 
 		return nil
 	})
 
-	failureWorkerHandler := redisq.WorkerHandler(func(args []string) error {
+	failureWorkerHandler := WorkerHandler(func(args []string) error {
 		logger.Print("Failure task args: " + strings.Join(args, " "))
 
 		return errors.New("Failure worker is not supported at the moment")
