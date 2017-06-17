@@ -1,6 +1,7 @@
 package redisq
 
 import (
+	"fmt"
 	"github.com/garyburd/redigo/redis"
 )
 
@@ -40,6 +41,27 @@ func NewWorker(id string, conn redis.Conn, prefix, taskType string, handler Work
 	return w
 }
 
+func (w *Worker) markTaskAsFailed(uuid string, err error, taskDetails *TaskDetails, permanently bool) error {
+	var list = LIST_FAILURE
+
+	if permanently {
+		list = LIST_FAILURE_FINAL
+	}
+
+	if taskDetails != nil {
+		taskDetails.LastError = fmt.Sprint("%+v", err)
+		w.rc.SaveTaskDetails(uuid, taskDetails)
+	}
+
+	w.Logger.Debugf("Pushing %s to %s", uuid, list)
+	if err := w.rc.PushTaskToList(uuid, list); err != nil {
+		w.Logger.Errorf("PushTaskToList(\"%s\", \"%s\") call failed: %+v", uuid, list, err)
+		return err
+	}
+
+	return nil
+}
+
 func (w *Worker) processTask(uuid string) {
 	w.Logger.Debugf("Processing task id: %s", uuid)
 
@@ -56,10 +78,7 @@ func (w *Worker) processTask(uuid string) {
 	taskDetails, err := w.rc.GetTaskDetails(uuid)
 	if err != nil {
 		w.Logger.Errorf("GetTaskDetails(\"%s\") call failed: %+v", uuid, err)
-		w.Logger.Debugf("Pushing %s to %s", uuid, LIST_FAILURE_FINAL)
-		if err := w.rc.PushTaskToList(uuid, LIST_FAILURE_FINAL); err != nil {
-			w.Logger.Errorf("PushTaskToList(\"%s\", \"%s\") call failed: %+v", uuid, LIST_FAILURE_FINAL, err)
-		}
+		w.markTaskAsFailed(uuid, err, nil, true)
 		return
 	}
 
@@ -71,10 +90,7 @@ func (w *Worker) processTask(uuid string) {
 	err = w.rc.SaveTaskDetails(uuid, taskDetails)
 	if err != nil {
 		w.Logger.Errorf("SaveTaskDetails(\"%s\") call failed: %+v", uuid, err)
-		w.Logger.Debugf("Pushing %s to %s", uuid, LIST_FAILURE_FINAL)
-		if err := w.rc.PushTaskToList(uuid, LIST_FAILURE_FINAL); err != nil {
-			w.Logger.Errorf("PushTaskToList(\"%s\", \"%s\") call failed: %+v", uuid, LIST_FAILURE_FINAL, err)
-		}
+		w.markTaskAsFailed(uuid, err, taskDetails, true)
 		return
 	}
 
@@ -91,10 +107,7 @@ func (w *Worker) processTask(uuid string) {
 	} else {
 		// otherwise put the task to the failure queue
 		w.Logger.Errorf("Handler call for task \"%s\" failed: %+v", uuid, err)
-		w.Logger.Debugf("Pushing %s to %s", uuid, LIST_FAILURE)
-		if err := w.rc.PushTaskToList(uuid, LIST_FAILURE); err != nil {
-			w.Logger.Errorf("PushTaskToList(\"%s\", \"%s\") call failed: %+v", uuid, LIST_FAILURE, err)
-		}
+		w.markTaskAsFailed(uuid, err, taskDetails, false)
 	}
 }
 

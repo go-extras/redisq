@@ -3,6 +3,7 @@ package redisq
 import (
 	"time"
 
+	"fmt"
 	"github.com/garyburd/redigo/redis"
 )
 
@@ -33,12 +34,33 @@ func NewFailureWorker(id string, conn redis.Conn, prefix, taskType string, handl
 	return w
 }
 
+func (w *FailureWorker) markTaskAsFailed(uuid string, err error, taskDetails *TaskDetails, permanently bool) error {
+	var list = LIST_FAILURE
+
+	if permanently {
+		list = LIST_FAILURE_FINAL
+	}
+
+	if taskDetails != nil {
+		taskDetails.LastError = fmt.Sprint("%+v", err)
+		w.rc.SaveTaskDetails(uuid, taskDetails)
+	}
+
+	w.Logger.Debugf("Pushing %s to %s", uuid, list)
+	if err := w.rc.PushTaskToList(uuid, list); err != nil {
+		w.Logger.Errorf("PushTaskToList(\"%s\", \"%s\") call failed: %+v", uuid, list, err)
+		return err
+	}
+
+	return nil
+}
+
 func (w *FailureWorker) processTask(uuid string) {
 	w.Logger.Debugf("Processing previously failed task id: %s", uuid)
 
 	// remove from the processing list on task finish
 	defer func() {
-		w.Logger.Debugf("Pushing %s to %s", uuid, LIST_FAILURE_PROCESSING)
+		w.Logger.Debugf("Removing %s from %s", uuid, LIST_FAILURE_PROCESSING)
 		if err := w.rc.RemoveOneFromList(uuid, LIST_FAILURE_PROCESSING); err != nil {
 			w.Logger.Errorf("RemoveOneFromList(\"%s\", \"%s\") call failed: %+v", uuid, LIST_FAILURE_PROCESSING, err)
 		}
@@ -52,11 +74,7 @@ func (w *FailureWorker) processTask(uuid string) {
 	w.Logger.Debugf("Getting %s details", uuid)
 	taskDetails, err := w.rc.GetTaskDetails(uuid)
 	if err != nil {
-		w.Logger.Debugf("Pushing %s to %s", uuid, LIST_FAILURE_FINAL)
-		w.rc.PushTaskToList(uuid, LIST_FAILURE_FINAL)
-		if err := w.rc.PushTaskToList(uuid, LIST_FAILURE_FINAL); err != nil {
-			w.Logger.Errorf("PushTaskToList(\"%s\", \"%s\") call failed: %+v", uuid, LIST_FAILURE_FINAL, err)
-		}
+		w.markTaskAsFailed(uuid, err, nil, true)
 		return
 	}
 
@@ -83,10 +101,7 @@ func (w *FailureWorker) processTask(uuid string) {
 
 	// otherwise put the task to the failure queue
 	w.Logger.Errorf("Handler call for task \"%s\" failed: %+v. ", uuid, err)
-	w.Logger.Debugf("Pushing %s to %s", uuid, LIST_FAILURE_FINAL)
-	if err := w.rc.PushTaskToList(uuid, LIST_FAILURE_FINAL); err != nil {
-		w.Logger.Errorf("PushTaskToList(\"%s\", \"%s\") call failed: %+v", uuid, LIST_FAILURE_FINAL, err)
-	}
+	w.markTaskAsFailed(uuid, err, taskDetails, true)
 }
 
 // Get worker instance id

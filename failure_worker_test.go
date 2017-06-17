@@ -64,6 +64,14 @@ func getFailureRedisConnMock(t *testing.T) *redigomock.Conn {
 
 	// PushTaskToList
 	conn.Command(
+		"LREM",
+		fmt.Sprintf("%s:%s:%s", FAILURE_WORKER_REDIS_PREFIX, LIST_FAILURE_PROCESSING, FAILURE_WORKER_TASK_TYPE),
+		1,
+		FAILURE_WORKER_TASK_UUID,
+	)
+
+	// PushTaskToList
+	conn.Command(
 		"DEL",
 		fmt.Sprintf("%s:%s:%s:%s", FAILURE_WORKER_REDIS_PREFIX, QUEUE_TASK, FAILURE_WORKER_TASK_TYPE, FAILURE_WORKER_TASK_UUID),
 	)
