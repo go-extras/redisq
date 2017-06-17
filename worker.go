@@ -45,15 +45,18 @@ func (w *Worker) processTask(uuid string) {
 
 	// remove from the processing list on task finish
 	defer func() {
+		w.Logger.Debugf("Removing %s from %s", uuid, LIST_PROCESSING)
 		if err := w.rc.RemoveOneFromList(uuid, LIST_PROCESSING); err != nil {
 			w.Logger.Errorf("RemoveOneFromList(\"%s\", \"%s\") call failed: %+v", uuid, LIST_PROCESSING, err)
 		}
 	}()
 
 	// obtain task details
+	w.Logger.Debugf("Getting %s details", uuid)
 	taskDetails, err := w.rc.GetTaskDetails(uuid)
 	if err != nil {
 		w.Logger.Errorf("GetTaskDetails(\"%s\") call failed: %+v", uuid, err)
+		w.Logger.Debugf("Pushing %s to %s", uuid, LIST_FAILURE_FINAL)
 		if err := w.rc.PushTaskToList(uuid, LIST_FAILURE_FINAL); err != nil {
 			w.Logger.Errorf("PushTaskToList(\"%s\", \"%s\") call failed: %+v", uuid, LIST_FAILURE_FINAL, err)
 		}
@@ -62,12 +65,13 @@ func (w *Worker) processTask(uuid string) {
 
 	// Increment task attempt counter
 	taskDetails.NewAttempt()
-	w.Logger.Debugf("Task %s attempt count is %d", uuid, taskDetails.Attempts)
 
 	// Try to save updated task state
+	w.Logger.Debugf("Saving %s details (new attempts count: %d)", uuid, taskDetails.Attempts)
 	err = w.rc.SaveTaskDetails(uuid, taskDetails)
 	if err != nil {
 		w.Logger.Errorf("SaveTaskDetails(\"%s\") call failed: %+v", uuid, err)
+		w.Logger.Debugf("Pushing %s to %s", uuid, LIST_FAILURE_FINAL)
 		if err := w.rc.PushTaskToList(uuid, LIST_FAILURE_FINAL); err != nil {
 			w.Logger.Errorf("PushTaskToList(\"%s\", \"%s\") call failed: %+v", uuid, LIST_FAILURE_FINAL, err)
 		}
@@ -75,6 +79,7 @@ func (w *Worker) processTask(uuid string) {
 	}
 
 	// handle task
+	w.Logger.Debugf("Calling %s handler with args %+v", uuid, taskDetails.Arguments)
 	err = w.handler(taskDetails.Arguments)
 
 	if err == nil {
@@ -86,6 +91,7 @@ func (w *Worker) processTask(uuid string) {
 	} else {
 		// otherwise put the task to the failure queue
 		w.Logger.Errorf("Handler call for task \"%s\" failed: %+v", uuid, err)
+		w.Logger.Debugf("Pushing %s to %s", uuid, LIST_FAILURE)
 		if err := w.rc.PushTaskToList(uuid, LIST_FAILURE); err != nil {
 			w.Logger.Errorf("PushTaskToList(\"%s\", \"%s\") call failed: %+v", uuid, LIST_FAILURE, err)
 		}

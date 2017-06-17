@@ -14,7 +14,7 @@ const (
 	LIST_FAILURE            = "failure"
 	LIST_FAILURE_FINAL      = "failure_final"
 	LIST_PROCESSING         = "processing"
-	LIST_FAILURE_PROCESSING = "processing"
+	LIST_FAILURE_PROCESSING = "failure_processing"
 )
 
 type TaskDetails struct {
@@ -29,7 +29,7 @@ type TaskDetails struct {
 // increments attempts and updates `LastAttempt` property to the current date
 func (td *TaskDetails) NewAttempt() {
 	td.Attempts++
-	td.LastAttempt = time.Now().Format(time.RFC850)
+	td.LastAttempt = time.Now().Format(time.RFC3339)
 }
 
 type RedisClient struct {

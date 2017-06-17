@@ -38,6 +38,7 @@ func (w *FailureWorker) processTask(uuid string) {
 
 	// remove from the processing list on task finish
 	defer func() {
+		w.Logger.Debugf("Pushing %s to %s", uuid, LIST_FAILURE_PROCESSING)
 		if err := w.rc.RemoveOneFromList(uuid, LIST_FAILURE_PROCESSING); err != nil {
 			w.Logger.Errorf("RemoveOneFromList(\"%s\", \"%s\") call failed: %+v", uuid, LIST_FAILURE_PROCESSING, err)
 		}
@@ -48,8 +49,10 @@ func (w *FailureWorker) processTask(uuid string) {
 	time.Sleep(time.Duration(w.SleepTime) * time.Millisecond)
 
 	// obtain task details
+	w.Logger.Debugf("Getting %s details", uuid)
 	taskDetails, err := w.rc.GetTaskDetails(uuid)
 	if err != nil {
+		w.Logger.Debugf("Pushing %s to %s", uuid, LIST_FAILURE_FINAL)
 		w.rc.PushTaskToList(uuid, LIST_FAILURE_FINAL)
 		if err := w.rc.PushTaskToList(uuid, LIST_FAILURE_FINAL); err != nil {
 			w.Logger.Errorf("PushTaskToList(\"%s\", \"%s\") call failed: %+v", uuid, LIST_FAILURE_FINAL, err)
@@ -59,11 +62,13 @@ func (w *FailureWorker) processTask(uuid string) {
 
 	// return the task back to the queue, if it yet has attempts to try
 	if taskDetails.Attempts < w.MaxAttempts {
+		w.Logger.Debugf("Pushing %s to %s", uuid, LIST_QUEUE)
 		w.rc.PushTaskToList(uuid, LIST_QUEUE)
 		return
 	}
 
 	// run task handler
+	w.Logger.Debugf("Calling %s failure handler with args %+v", uuid, taskDetails.Arguments)
 	err = w.handler(taskDetails.Arguments)
 
 	// delete task if no error in handler
@@ -78,6 +83,7 @@ func (w *FailureWorker) processTask(uuid string) {
 
 	// otherwise put the task to the failure queue
 	w.Logger.Errorf("Handler call for task \"%s\" failed: %+v. ", uuid, err)
+	w.Logger.Debugf("Pushing %s to %s", uuid, LIST_FAILURE_FINAL)
 	if err := w.rc.PushTaskToList(uuid, LIST_FAILURE_FINAL); err != nil {
 		w.Logger.Errorf("PushTaskToList(\"%s\", \"%s\") call failed: %+v", uuid, LIST_FAILURE_FINAL, err)
 	}
@@ -93,7 +99,7 @@ func (w *FailureWorker) GetTaskType() string {
 	return w.rc.taskType
 }
 
-// Run a worker (normally use a goroutine to allow concurent workers)
+// Run a worker (normally use a goroutine to allow concurrent workers)
 func (w *FailureWorker) Run() {
 	w.Logger.Debugf("[%s][%s] started", w.GetInstanceId(), w.GetTaskType())
 	for {
