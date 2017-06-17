@@ -49,7 +49,7 @@ func (w *Worker) markTaskAsFailed(uuid string, err error, taskDetails *TaskDetai
 	}
 
 	if taskDetails != nil {
-		taskDetails.LastError = fmt.Sprint("%+v", err)
+		taskDetails.LastError = fmt.Sprintf("%+v", err)
 		w.rc.SaveTaskDetails(uuid, taskDetails)
 	}
 
