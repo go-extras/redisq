@@ -55,7 +55,7 @@ func (d *Daemon) runWorker(id int) {
 		d.WorkerHandler,
 		d.failureW,
 	)
-	worker.Logger = WrapLogger(d.Logger, fmt.Sprintf("[%s][%s][%d]", "w", d.taskType, id))
+	worker.Logger = WrapLogger(d.Logger, fmt.Sprintf("[%s][%s][%d] ", "w", d.taskType, id))
 	go func(conn redis.Conn) {
 		defer conn.Close()
 		worker.Run()
@@ -74,7 +74,7 @@ func (d *Daemon) runFailureWorker(id int) WorkerInterface {
 	)
 	failureWorker.MaxAttempts = d.FailureMaxAttempts
 	failureWorker.SleepTime = d.FailureSleepTime
-	failureWorker.Logger = d.Logger
+	failureWorker.Logger = WrapLogger(d.Logger, fmt.Sprintf("[%s][%s][%d] ", "f", d.taskType, id))
 	go func(conn redis.Conn) {
 		defer conn.Close()
 		failureWorker.Run()
