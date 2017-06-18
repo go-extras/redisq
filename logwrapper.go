@@ -1,13 +1,11 @@
 package redisq
 
-import "gopkg.in/go-extras/redisq.v1"
-
 type LogWrapper struct {
-	logger redisq.Logger
+	logger Logger
 	prefix string
 }
 
-func WrapLogger(logger redisq.Logger, prefix string) *LogWrapper {
+func WrapLogger(logger Logger, prefix string) *LogWrapper {
 	return &LogWrapper{
 		logger: logger,
 		prefix: prefix,
