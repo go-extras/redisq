@@ -85,7 +85,7 @@ func TestWorker_processTask(t *testing.T) {
 	failure := make(chan error, 0)
 	conn := getRedisConnMock(t)
 
-	handler := WorkerHandler(func(args []string) error {
+	handler := WorkerHandler(func(logger Logger, args []string) error {
 		expectedArgs := []string{"foo", "bar", "next"}
 
 		if !reflect.DeepEqual(args, expectedArgs) {
@@ -95,7 +95,7 @@ func TestWorker_processTask(t *testing.T) {
 		return nil
 	})
 
-	w := NewWorker("worker 1", conn, WORKER_REDIS_PREFIX, WORKER_TASK_TYPE, handler, failure)
+	w := NewWorker(1, conn, WORKER_REDIS_PREFIX, WORKER_TASK_TYPE, handler, failure)
 
 	w.processTask(WORKER_TASK_UUID)
 
@@ -108,7 +108,7 @@ func TestWorker_GetInstanceId(t *testing.T) {
 	failure := make(chan error, 0)
 	conn := getFailureRedisConnMock(t)
 
-	expected := "worker_1"
+	expected := 1
 	w := NewWorker(expected, conn, WORKER_REDIS_PREFIX, WORKER_TASK_TYPE, nil, failure)
 	got := w.GetInstanceId()
 
@@ -122,7 +122,7 @@ func TestWorker_GetTaskType(t *testing.T) {
 	failure := make(chan error, 0)
 	conn := getFailureRedisConnMock(t)
 
-	w := NewWorker("worker_1", conn, WORKER_REDIS_PREFIX, WORKER_TASK_TYPE, nil, failure)
+	w := NewWorker(1, conn, WORKER_REDIS_PREFIX, WORKER_TASK_TYPE, nil, failure)
 	got := w.GetTaskType()
 
 	if got != WORKER_TASK_TYPE {

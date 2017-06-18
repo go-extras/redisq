@@ -6,17 +6,17 @@ import (
 )
 
 type WorkerInterface interface {
-	GetInstanceId() string
+	GetInstanceId() int
 	GetTaskType() string
 	Run()
 }
 
 // Defines Worker handler function
-type WorkerHandler (func(args []string) error)
+type WorkerHandler (func(logger Logger, args []string) error)
 
 type Worker struct {
 	WorkerInterface
-	id      string
+	id      int
 	rc      *RedisClient
 	failure chan error
 	handler WorkerHandler
@@ -25,7 +25,7 @@ type Worker struct {
 
 // Instantiates Worker class
 // In addition it is possible to set exported parameters (Logger)
-func NewWorker(id string, conn redis.Conn, prefix, taskType string, handler WorkerHandler, failure chan error) (w *Worker) {
+func NewWorker(id int, conn redis.Conn, prefix, taskType string, handler WorkerHandler, failure chan error) (w *Worker) {
 	w = &Worker{
 		id:      id,
 		handler: handler,
@@ -96,7 +96,7 @@ func (w *Worker) processTask(uuid string) {
 
 	// handle task
 	w.Logger.Debugf("Calling %s handler with args %+v", uuid, taskDetails.Arguments)
-	err = w.handler(taskDetails.Arguments)
+	err = w.handler(w.Logger, taskDetails.Arguments)
 
 	if err == nil {
 		w.Logger.Debug("Deleting task:", uuid)
@@ -112,7 +112,7 @@ func (w *Worker) processTask(uuid string) {
 }
 
 // Get worker instance id
-func (w *Worker) GetInstanceId() string {
+func (w *Worker) GetInstanceId() int {
 	return w.id
 }
 

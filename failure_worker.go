@@ -15,7 +15,7 @@ type FailureWorker struct {
 
 // Instantiates FailureWorker class
 // In addition it is possible to set exported parameters (Logger, MaxAttempts, SleepTime)
-func NewFailureWorker(id string, conn redis.Conn, prefix, taskType string, handler WorkerHandler, failure chan error) (w *FailureWorker) {
+func NewFailureWorker(id int, conn redis.Conn, prefix, taskType string, handler WorkerHandler, failure chan error) (w *FailureWorker) {
 	w = &FailureWorker{}
 
 	w.rc = NewRedisClient(
@@ -87,7 +87,7 @@ func (w *FailureWorker) processTask(uuid string) {
 
 	// run task handler
 	w.Logger.Debugf("Calling %s failure handler with args %+v", uuid, taskDetails.Arguments)
-	err = w.handler(taskDetails.Arguments)
+	err = w.handler(w.Logger, taskDetails.Arguments)
 
 	// delete task if no error in handler
 	if err == nil {
@@ -105,7 +105,7 @@ func (w *FailureWorker) processTask(uuid string) {
 }
 
 // Get worker instance id
-func (w *FailureWorker) GetInstanceId() string {
+func (w *FailureWorker) GetInstanceId() int {
 	return w.id
 }
 

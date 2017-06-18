@@ -24,20 +24,20 @@ type Daemon struct {
 	Logger               Logger
 }
 
-func (d *Daemon) sleep(id string, from, to int32) {
+func (d *Daemon) sleep(from, to int32) {
 	n := rand.Int31n(to-from) + from // [5..15)
-	d.Logger.Infof("[%s][%s] Sleeping %d seconds.", id, d.taskType, n)
+	d.Logger.Infof(" Sleeping %d seconds.", n)
 	runtime.Gosched()
 	time.Sleep(time.Duration(n) * time.Second)
 }
 
-func (d *Daemon) getRedisConn(id, taskType, addr string) redis.Conn {
+func (d *Daemon) getRedisConn(addr string) redis.Conn {
 	for {
 		conn, err := redis.Dial("tcp", addr)
 
 		if err != nil {
-			d.Logger.Errorf("[%s][%s] Cannot connect to Redis: %+v.", id, taskType, err)
-			d.sleep(id, 5, 15)
+			d.Logger.Errorf("Cannot connect to Redis: %+v.", err)
+			d.sleep(5, 15)
 			continue
 		}
 
@@ -45,8 +45,8 @@ func (d *Daemon) getRedisConn(id, taskType, addr string) redis.Conn {
 	}
 }
 
-func (d *Daemon) runWorker(id string) {
-	conn := d.getRedisConn(id, d.taskType, d.redisAddr)
+func (d *Daemon) runWorker(id int) {
+	conn := d.getRedisConn(d.redisAddr)
 	worker := NewWorker(
 		id,
 		conn,
@@ -55,15 +55,15 @@ func (d *Daemon) runWorker(id string) {
 		d.WorkerHandler,
 		d.failureW,
 	)
-	worker.Logger = d.Logger
+	worker.Logger = WrapLogger(d.Logger, fmt.Sprintf("[%s][%s][%d]", "w", d.taskType, id))
 	go func(conn redis.Conn) {
 		defer conn.Close()
 		worker.Run()
 	}(conn)
 }
 
-func (d *Daemon) runFailureWorker(id string) WorkerInterface {
-	conn := d.getRedisConn(id, d.taskType, d.redisAddr)
+func (d *Daemon) runFailureWorker(id int) WorkerInterface {
+	conn := d.getRedisConn(d.redisAddr)
 	failureWorker := NewFailureWorker(
 		id,
 		conn,
@@ -90,7 +90,7 @@ func (d *Daemon) workerErrorHandler() {
 			if val, ok := err.(WorkerFatalError); ok {
 				d.Logger.Errorf("[%s][%s] failed with error: %+v", val.Worker.GetInstanceId(), val.Worker.GetTaskType(), val.Err)
 				go func() {
-					d.sleep(val.Worker.GetInstanceId(), 5, 15)
+					d.sleep(5, 15)
 					d.runWorker(val.Worker.GetInstanceId())
 				}()
 			} else {
@@ -100,7 +100,7 @@ func (d *Daemon) workerErrorHandler() {
 			if val, ok := err.(WorkerFatalError); ok {
 				d.Logger.Errorf("[%s][%s] failed with error: %+v", val.Worker.GetInstanceId(), val.Worker.GetTaskType(), val.Err)
 				go func() {
-					d.sleep(val.Worker.GetInstanceId(), 5, 15)
+					d.sleep(5, 15)
 					d.runFailureWorker(val.Worker.GetInstanceId())
 				}()
 			} else {
@@ -114,10 +114,10 @@ func (d *Daemon) workerErrorHandler() {
 func (d *Daemon) Run() {
 	// initial start
 	for i := 0; i < d.workerCount; i++ {
-		go d.runWorker(fmt.Sprintf("Worker[%d]", i))
+		go d.runWorker(i)
 	}
 
-	go d.runFailureWorker("FailureWorker")
+	go d.runFailureWorker(0)
 
 	// restart workers on failure
 	go d.workerErrorHandler()
@@ -127,13 +127,13 @@ func (d *Daemon) Run() {
 func NewDaemon(taskType string, workerCount int, redisPrefix, redisAddr string) *Daemon {
 	logger := &NullLogger{}
 
-	workerHandler := WorkerHandler(func(args []string) error {
+	workerHandler := WorkerHandler(func(logger Logger, args []string) error {
 		logger.Printf("Task args: %s", strings.Join(args, " "))
 
 		return nil
 	})
 
-	failureWorkerHandler := WorkerHandler(func(args []string) error {
+	failureWorkerHandler := WorkerHandler(func(logger Logger, args []string) error {
 		logger.Print("Failure task args: " + strings.Join(args, " "))
 
 		return errors.New("Failure worker is not supported at the moment")
