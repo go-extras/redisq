@@ -116,7 +116,7 @@ func (w *FailureWorker) GetTaskType() string {
 
 // Run a worker (normally use a goroutine to allow concurrent workers)
 func (w *FailureWorker) Run() {
-	w.Logger.Debugf("[%s][%s] started", w.GetInstanceId(), w.GetTaskType())
+	w.Logger.Debug("started")
 	for {
 		// pick an item from the queue
 		uuid, err := w.rc.PickTask(LIST_FAILURE, LIST_FAILURE_PROCESSING)
