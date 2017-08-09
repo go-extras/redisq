@@ -29,7 +29,7 @@ type TaskDetails struct {
 // increments attempts and updates `LastAttempt` property to the current date
 func (td *TaskDetails) NewAttempt() {
 	td.Attempts++
-	td.LastAttempt = time.Now().Format(time.RFC3339)
+	td.LastAttempt = time.Now().UTC().Format(time.RFC3339)
 }
 
 type RedisClient struct {
